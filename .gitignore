@@ -1,0 +1,4 @@
+gravitee-repositories
+node_modules
+
+!**/**/.circleci/config.yml

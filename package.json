@@ -1,0 +1,11 @@
+{
+  "name": "gravitee-repo-combiner",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Gaëtan Maisse <gaetanmaisse@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "prettier": "^2.3.1"
+  }
+}
