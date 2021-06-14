@@ -1,6 +1,6 @@
 #!/usr/bin/env zx
 
-const newRootRepo = `gravitee-repositories`;
+const newRootRepo = `gravitee-apim-repository`;
 const reposToMerge = [
   `gravitee-repository`,
   `gravitee-repository-test`,
