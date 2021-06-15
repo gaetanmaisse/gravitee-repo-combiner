@@ -26,11 +26,7 @@ const branches = [`master`, ...branchesExceptMaster];
 await $`rm -rf ${newRootRepo}`;
 await $`mkdir ${newRootRepo}`;
 
-cd(`${newRootRepo}/`);
-await $`git init`;
-await $`git commit --allow-empty -m "chore: init monorepo"`;
-
-for (const branch of branchesExceptMaster) {
+for (const branch of branches) {
   await $`git checkout -b ${branch}`;
   await $`git commit --allow-empty -m "chore: create ${branch} branch"`;
 }
@@ -50,23 +46,23 @@ for (const branch of branches) {
     await $`git fetch --all`;
     await $`git merge ${repoToMerge}/${branchToMerge} --allow-unrelated-histories`;
 
-    await $`mkdir ${repoToMerge}`;
+    await $`mkdir -p ${newRootRepo}/${repoToMerge}`;
 
     for (const fileOrDirectory of filesOrDirectoriesToExcludeDuringCopy) {
       await $`rm -rf ${fileOrDirectory}`;
     }
 
     let isInterestingData = (fileOrDirectory) =>
-      fileOrDirectory !== ".git" && !reposToMerge.includes(fileOrDirectory);
+      fileOrDirectory !== ".git" && fileOrDirectory !== newRootRepo;
 
-    let folderData = await fs.readdir(`${newRootRepo}`);
+    let folderData = await fs.readdir('.');
     let dataToMove = folderData.filter(isInterestingData);
     for (const fileOrDirectory of dataToMove) {
-      await $`mv ${fileOrDirectory} ${repoToMerge}`;
+      await $`mv ${fileOrDirectory} ${newRootRepo}/${repoToMerge}`;
     }
 
     await $`git add -A`;
-    await $`git commit -m "chore: move ${repoToMerge} to its own directory"`;
+    await $`git commit -m "chore: move ${newRootRepo}/${repoToMerge} to its own directory"`;
     await $`git remote remove ${repoToMerge}`;
   }
 }
