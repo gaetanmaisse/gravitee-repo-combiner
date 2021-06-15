@@ -1,0 +1,884 @@
+From 8dc3d0056de33d38a2b5e771f02453cd58f43afd Mon Sep 17 00:00:00 2001
+From: Florent CHAMFROY <florent.chamfroy@graviteesource.com>
+Date: Mon, 14 Jun 2021 12:34:21 +0200
+Subject: [PATCH] chore: initializing parent-pom and circleCI config
+
+---
+ .circleci/config.yml                          | 390 ++++++++++++++++++
+ .gitignore                                    |  39 ++
+ .../pom.xml                                   |   2 +-
+ .../pom.xml                                   |   2 +-
+ .../pom.xml                                   |   9 +-
+ .../gravitee-repository-hazelcast/pom.xml     |  13 +-
+ .../gravitee-repository-jdbc/pom.xml          |  13 +-
+ .../gravitee-repository-mongodb/pom.xml       |  13 +-
+ .../gravitee-repository-redis/pom.xml         |  12 +-
+ .../gravitee-repository-test/pom.xml          |  10 +-
+ .../gravitee-repository/README.adoc           |   2 -
+ .../gravitee-repository/pom.xml               |   7 +-
+ gravitee-apim-repository/pom.xml              |  45 ++
+ pom.xml                                       |  69 ++++
+ 14 files changed, 576 insertions(+), 50 deletions(-)
+ create mode 100644 .circleci/config.yml
+ create mode 100644 .gitignore
+ delete mode 100644 gravitee-apim-repository/gravitee-repository/README.adoc
+ create mode 100644 gravitee-apim-repository/pom.xml
+ create mode 100644 pom.xml
+
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+new file mode 100644
+index 00000000..bf8496bb
+--- /dev/null
++++ b/.circleci/config.yml
+@@ -0,0 +1,390 @@
++version: 2.1
++
++parameters:
++  gio_action:
++    type: enum
++    enum: [release, standalone_release, standalone_release_replay, nexus_staging, vm_nexus_staging, pull_requests]
++    default: pull_requests
++  dry_run:
++    type: boolean
++    default: true
++    description: "Run in dry run mode?"
++  maven_profile_id:
++    type: string
++    default: "gravitee-dry-run"
++    description: "Maven ID of the Maven profile to use for a dry run ?"
++  secrethub_org:
++    type: string
++    default: "graviteeio"
++    description: "SecretHub Org to use to fetch secrets ?"
++  secrethub_repo:
++    type: string
++    default: "cicd"
++    description: "SecretHub Repo to use to fetch secrets ?"
++  s3_bucket_name:
++    type: string
++    default: ''
++    description: "Name of the S3 Bucket used to store and retrieve the state of the maven project, to perform the nexus staging ?"
++  replayed_release:
++    type: string
++    default: ''
++    description: "What is the version number of the release you want to replay? (Mandatory, only for the 'standalone_release_replay' Workflow / see 'gio_action' pipeline parameter)"
++orbs:
++  slack: circleci/slack@4.2.1
++  gravitee: gravitee-io/gravitee@1.0
++  secrethub: secrethub/cli@1.1.0
++
++workflows:
++  version: 2.1
++  # -- typically this workflow is executed on pull requests events for Community Edition Gravitee Repositories
++  pull_requests:
++    when:
++      and:
++        - equal: [ pull_requests, << pipeline.parameters.gio_action >> ]
++    jobs:
++      - gravitee/d_pull_requests_secrets:
++          context: cicd-orchestrator
++          name: pr_secrets_resolution
++            # - gravitee/d_pr_tests_containers_qa:
++            # context: gravitee-qa
++            # name: process_pull_request_qa
++            # requires:
++            # - pr_secrets_resolution
++            # # "What is the maven ID of the maven profile to use to build and deploy SNAPSHOTS to Prviate Artifactory ?"
++            # maven_profile_id: 'gio-dev'
++            # filters:
++            # branches:
++            # ignore:
++          # - master
++      - gravitee/d_pull_requests_ce:
++          name: process_pull_request
++          requires:
++            - pr_secrets_resolution
++          # "What is the maven ID of the maven profile to use to build and deploy SNAPSHOTS to Prviate Artifactory ?"
++          maven_profile_id: 'gio-dev'
++          # nexus_snapshots_url: 'https://oss.sonatype.org/content/repositories/snapshots'
++          # nexus_snapshots_server_id: 'sonatype-nexus-snapshots'
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'medium'
++            # filters:
++            # branches:
++            # ignore:
++          # - master
++  # ---
++  # The 2 Workflows Below are there for the CICD Orchestrator to be able to
++  # release Gravitee Kubernetes in an APIM release Process, with Docker executors instead of VMs
++  release:
++    when:
++      and:
++        - equal: [ release, << pipeline.parameters.gio_action >> ]
++        - not: << pipeline.parameters.dry_run >>
++    jobs:
++      - gravitee/d_release_secrets:
++          context: cicd-orchestrator
++          name: release_secrets_resolution
++      - gravitee/d_release:
++          name: maven_n_git_release
++          requires:
++            - release_secrets_resolution
++          dry_run: false
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++  release_dry_run:
++    when:
++      and:
++        - equal: [ release, << pipeline.parameters.gio_action >> ]
++        - << pipeline.parameters.dry_run >>
++    jobs:
++      - gravitee/d_release_secrets:
++          context: cicd-orchestrator
++          name: release_secrets_resolution
++      - gravitee/d_release:
++          name: maven_n_git_release
++          requires:
++            - release_secrets_resolution
++          dry_run: true
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++  # ---
++  # CICD Workflow For APIM Orchestrated Nexus Staging, Container-based : Circle CI Docker Executor
++  nexus_staging:
++    when:
++      equal: [ nexus_staging, << pipeline.parameters.gio_action >> ]
++    jobs:
++      - gravitee/d_nexus_staging_secrets:
++          context: cicd-orchestrator
++          name: nexus_staging_secrets_resolution
++      - gravitee/d_nexus_staging:
++          name: nexus_staging
++          requires:
++            - nexus_staging_secrets_resolution
++          dry_run: << pipeline.parameters.dry_run >>
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          # => If you are running a standalone release, your S3 Bucket name
++          #    is 'prepared-standalone-nexus-staging-${GRAVITEE_REPO_NAME}-${RELEASE_VERSION_NUMBER}'
++          # => If you are running an Orchestrated release, The Orchestrator knows how to compute the S3 Bucket name
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++  # ---
++  # The 6 Workflows Below are there to perform a "Standalone Release" and "replay" a "Standalone Release" :
++  # => independently of any APIM release Process, with Docker executors instead of VMs
++  # => with chained nexus staging : only when release with dry run mode off
++  standalone_release:
++    when:
++      and:
++        - equal: [ standalone_release, << pipeline.parameters.gio_action >> ]
++        - not: << pipeline.parameters.dry_run >>
++    jobs:
++      - gravitee/d_release_secrets:
++          context: cicd-orchestrator
++          name: release_secrets_resolution
++      - gravitee/d_standalone_release:
++          name: maven_n_git_release
++          requires:
++            - release_secrets_resolution
++          dry_run: false
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++  standalone_release_dry_run:
++    when:
++      and:
++        - equal: [ standalone_release, << pipeline.parameters.gio_action >> ]
++        - << pipeline.parameters.dry_run >>
++    jobs:
++      - gravitee/d_release_secrets:
++          context: cicd-orchestrator
++          name: release_secrets_resolution
++      - gravitee/d_standalone_release:
++          name: maven_n_git_release
++          requires:
++            - release_secrets_resolution
++          dry_run: true
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++  standalone_nexus_staging:
++    # ---
++    # Running the nexus staging makes sense only when the
++    # standalone release is being performed with dry run mode off
++    # That is to say, when the maven project is ready to be release to maven Staging
++    # ---
++    when:
++      and:
++        - equal: [ standalone_release, << pipeline.parameters.gio_action >> ]
++        - not: << pipeline.parameters.dry_run >>
++      # ---
++      # Running the nexus staging makes sense only when the
++      # standalone release is being performed with dry run mode off
++      # That is to say, when the maven project is ready to be release to mmaven Staging
++      # Never the less, to test the CICD system, I temporarily git pushed a different configuration
++      # ---
++      # when:
++      # equal: [ standalone_release, << pipeline.parameters.gio_action >> ]
++    jobs:
++      - gravitee/d_nexus_staging_secrets:
++          context: cicd-orchestrator
++          name: nexus_staging_secrets_resolution
++      - nexus_staging_dry_run_approval:
++          type: approval
++          requires:
++            - nexus_staging_secrets_resolution
++      - gravitee/d_standalone_nexus_staging:
++          name: standalone_nexus_staging_dry_run
++          requires:
++            - nexus_staging_dry_run_approval
++            # - nexus_staging_secrets_resolution
++          dry_run: true
++          # maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          maven_profile_id: "gravitee-release"
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++      - gravitee/d_standalone_nexus_staging:
++          name: standalone_nexus_staging
++          requires:
++            - standalone_nexus_staging_dry_run
++            # - nexus_staging_secrets_resolution
++          dry_run: false
++          # maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          maven_profile_id: "gravitee-release"
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++  standalone_release_replay:
++    when:
++      and:
++        - equal: [ standalone_release_replay, << pipeline.parameters.gio_action >> ]
++        - not: << pipeline.parameters.dry_run >>
++    jobs:
++      - gravitee/d_release_secrets:
++          context: cicd-orchestrator
++          name: release_secrets_resolution
++      - gravitee/d_standalone_release_replay:
++          name: maven_n_git_release
++          requires:
++            - release_secrets_resolution
++          dry_run: false
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          gio_release_version: << pipeline.parameters.replayed_release >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++  standalone_release_replay_dry_run:
++    when:
++      and:
++        - equal: [ standalone_release_replay, << pipeline.parameters.gio_action >> ]
++        - << pipeline.parameters.dry_run >>
++    jobs:
++      - gravitee/d_release_secrets:
++          context: cicd-orchestrator
++          name: release_secrets_resolution
++      - gravitee/d_standalone_release_replay:
++          name: maven_n_git_release
++          requires:
++            - release_secrets_resolution
++          dry_run: true
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          gio_release_version: << pipeline.parameters.replayed_release >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++  standalone_nexus_staging_replay:
++    # ---
++    # Running the nexus staging makes sense only when the
++    # standalone release is being performed with dry run mode off
++    # That is to say, when the maven project is ready to be release to maven Staging
++    # ---
++    when:
++      and:
++        - equal: [ standalone_release_replay, << pipeline.parameters.gio_action >> ]
++        - not: << pipeline.parameters.dry_run >>
++      # ---
++      # Running the nexus staging makes sense only when the
++      # standalone release is being performed with dry run mode off
++      # That is to say, when the maven project is ready to be release to mmaven Staging
++      # Never the less, to test the CICD system, I temporarily git pushed a different configuration
++      # ---
++      # when:
++      # equal: [ standalone_release, << pipeline.parameters.gio_action >> ]
++    jobs:
++      - gravitee/d_nexus_staging_secrets:
++          context: cicd-orchestrator
++          name: nexus_staging_secrets_resolution
++      - nexus_staging_replay_dry_run_approval:
++          type: approval
++          requires:
++            - nexus_staging_secrets_resolution
++      - gravitee/d_standalone_nexus_staging_replay:
++          name: standalone_nexus_staging_replay_dry_run
++          requires:
++            - nexus_staging_replay_dry_run_approval
++            # - nexus_staging_secrets_resolution
++          dry_run: true
++          # maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          maven_profile_id: "gravitee-release"
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          gio_release_version: << pipeline.parameters.replayed_release >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++      - gravitee/d_standalone_nexus_staging_replay:
++          name: standalone_nexus_staging_replay
++          requires:
++            - standalone_nexus_staging_replay_dry_run
++            # - nexus_staging_secrets_resolution
++          dry_run: false
++          # maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          maven_profile_id: "gravitee-release"
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++          gio_release_version: << pipeline.parameters.replayed_release >>
++          # container_gun_image_org: 'circleci'
++          # container_gun_image_name: 'openjdk'
++          # container_gun_image_tag: '11.0.3-jdk-stretch'
++          container_size: 'large'
++
++
++  # ---
++  # CICD Workflow For APIM Orchestrated Nexus Staging, VM-based
++  vm_nexus_staging:
++    when:
++      equal: [ vm_nexus_staging, << pipeline.parameters.gio_action >> ]
++    jobs:
++      - gravitee/nexus_staging:
++          context: cicd-orchestrator
++          secrethub_org: << pipeline.parameters.secrethub_org >>
++          secrethub_repo: << pipeline.parameters.secrethub_repo >>
++          maven_profile_id: << pipeline.parameters.maven_profile_id >>
++          s3_bucket_name: << pipeline.parameters.s3_bucket_name >>
++
++
++  # ---
++  # Nighlty for all CE repositories :
++  # builds the SNAPSHOT, and deploys
++  # it into Gravitee Private Artifactory
++  # --
++  # No Nexus deployment
++  # ---
++  nightly:
++    when:
++      equal: [ nightly, << pipeline.parameters.gio_action >> ]
++        # triggers:
++        # - schedule:
++        # cron: "0 0 * * *"
++        # filters:
++        # branches:
++        # only:
++        # - master
++      # - /^[0-999].[0-999].x/
++    jobs:
++      - gravitee/d_all_nightly_secrets:
++          context: cicd-orchestrator
++          name: nightly_secrets_resolution
++          filters:
++            branches:
++              only:
++                - master
++                - /^[0-999].[0-999].x/
++      - gravitee/d_all_nightly_ce:
++          name: process_pull_request
++          requires:
++            - nightly_secrets_resolution
++          filters:
++            branches:
++              only:
++                - master
++                - /^[0-999].[0-999].x/
+\ No newline at end of file
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 00000000..778cfe1a
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,39 @@
++!.gitignore
++
++target/
++.idea/
++*.iml
++.DS_Store
++
++# eclipse
++.settings/
++.project
++.classpath
++/bin/
++
++# TODO
++# gravitee-rest-api-standalone/gravitee-rest-api-standalone-distribution/src/main/resources/license/*
++# gravitee-rest-api-standalone/gravitee-rest-api-standalone-distribution/src/main/resources/logs/*
++# gravitee-rest-api-standalone/gravitee-rest-api-standalone-distribution/src/main/resources/data/*
++# gravitee-rest-api-standalone/gravitee-rest-api-standalone-distribution/src/main/resources/plugins/*
++
++# used in makefile as working directory
++.working/
++# -- Cicd : Git ignore the [.circleci/**/*] which contains
++# files which do not need to be commited (password to artifactory)
++#.circleci/**/*
++# -- Cicd : Do not git ignore the [!./.circleci/config.yml] which contains
++# the pipeline definition
++#!./.circleci/config.yml
++# -- Cicd : Git ignore the [gpg.script.snippet.sh] which contains
++# secrets (password to artifactory)
++gpg.script.snippet.sh
++# -- Cicd : The [graviteebot.gpg.priv.key] file contains secrets 
++# which should not be commited
++graviteebot.gpg.priv.key
++# -- Cicd : The [.secrethub.credential] file contains secrets 
++# which should not be commited
++graviteebot.gpg.pub.key
++# -- Cicd : The [.secrets.json] file contains secrets 
++# which should not be commited
++.secrets.json
+diff --git a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml
+index 0cac8c3c..71f70631 100644
+--- a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml
+@@ -28,7 +28,7 @@
+     </parent>
+ 
+     <artifactId>gravitee-repository-gateway-bridge-http-client</artifactId>
+-    <name>Gravitee.io APIM - Gateway - Repository - HTTP Bridge - Client</name>
++    <name>Gravitee.io APIM - Repository - Gateway - Bridge HTTP - Client</name>
+ 
+     <dependencies>
+         <!-- Gravitee dependencies -->
+diff --git a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml
+index 09ac541f..3eeac69e 100644
+--- a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml
+@@ -28,7 +28,7 @@
+     </parent>
+ 
+     <artifactId>gravitee-repository-gateway-bridge-http-server</artifactId>
+-    <name>Gravitee.io APIM - Gateway - Repository - HTTP Bridge - Server</name>
++    <name>Gravitee.io APIM - Repository - Gateway - Bridge HTTP - Server</name>
+ 
+     <dependencies>
+         <!-- Gravitee dependencies -->
+diff --git a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml
+index ac1e192a..eb9540ce 100644
+--- a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml
+@@ -22,9 +22,9 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <parent>
+-        <groupId>io.gravitee</groupId>
+-        <artifactId>gravitee-parent</artifactId>
+-        <version>19.2.1</version>
++        <groupId>io.gravitee.apim.repository</groupId>
++        <artifactId>gravitee-apim-repository</artifactId>
++        <version>3.10.0-SNAPSHOT</version>
+     </parent>
+ 
+     <groupId>io.gravitee.gateway</groupId>
+@@ -39,7 +39,6 @@
+     </modules>
+ 
+     <properties>
+-        <gravitee-repository.version>3.9.0</gravitee-repository.version>
+         <gravitee-common.version>1.18.0</gravitee-common.version>
+     </properties>
+ 
+@@ -65,7 +64,7 @@
+             <dependency>
+                 <groupId>io.gravitee.repository</groupId>
+                 <artifactId>gravitee-repository</artifactId>
+-                <version>${gravitee-repository.version}</version>
++                <version>${project.version}</version>
+             </dependency>
+ 
+             <dependency>
+diff --git a/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml b/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml
+index e460bcbe..afb1981c 100644
+--- a/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml
+@@ -21,19 +21,16 @@
+ 	<modelVersion>4.0.0</modelVersion>
+ 
+ 	<parent>
+-		<groupId>io.gravitee</groupId>
+-		<artifactId>gravitee-parent</artifactId>
+-		<version>19</version>
++		<groupId>io.gravitee.apim.repository</groupId>
++		<artifactId>gravitee-apim-repository</artifactId>
++		<version>3.10.0-SNAPSHOT</version>
+ 	</parent>
+ 
+-	<groupId>io.gravitee.repository</groupId>
+ 	<artifactId>gravitee-repository-hazelcast</artifactId>
+-	<version>3.5.0-SNAPSHOT</version>
++	<version>3.10.0-SNAPSHOT</version>
+ 	<name>Gravitee.io APIM - Repository - Hazelcast</name>
+ 
+ 	<properties>
+-		<gravitee-repository.version>3.4.0</gravitee-repository.version>
+-		<gravitee-repository-test.version>3.4.0-SNAPSHOT</gravitee-repository-test.version>
+ 		<hazelcast.version>3.12.9</hazelcast.version>
+ 		<maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
+ 	</properties>
+@@ -43,7 +40,7 @@
+ 		<dependency>
+ 			<groupId>io.gravitee.repository</groupId>
+ 			<artifactId>gravitee-repository</artifactId>
+-			<version>${gravitee-repository.version}</version>
++			<version>${project.version}</version>
+ 			<scope>provided</scope>
+ 		</dependency>
+ 
+diff --git a/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml b/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml
+index b8ebee70..baf26976 100644
+--- a/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml
+@@ -21,19 +21,16 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <parent>
+-        <groupId>io.gravitee</groupId>
+-        <artifactId>gravitee-parent</artifactId>
+-        <version>19.2.1</version>
++        <groupId>io.gravitee.apim.repository</groupId>
++        <artifactId>gravitee-apim-repository</artifactId>
++        <version>3.10.0-SNAPSHOT</version>
+     </parent>
+ 
+-    <groupId>io.gravitee.repository</groupId>
+     <artifactId>gravitee-repository-jdbc</artifactId>
+     <version>3.10.0-SNAPSHOT</version>
+     <name>Gravitee.io APIM - Repository - JDBC</name>
+ 
+     <properties>
+-        <gravitee-repository.version>3.10.0-SNAPSHOT</gravitee-repository.version>
+-        <gravitee-repository-test.version>3.10.0-SNAPSHOT</gravitee-repository-test.version>
+         <gravitee-definition.version>1.25.0</gravitee-definition.version>
+         <maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
+         <HikariCP.version>3.4.1</HikariCP.version>
+@@ -54,7 +51,7 @@
+         <dependency>
+             <groupId>io.gravitee.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+-            <version>${gravitee-repository.version}</version>
++            <version>${project.version}</version>
+             <scope>provided</scope>
+         </dependency>
+ 
+@@ -128,7 +125,7 @@
+         <dependency>
+             <groupId>io.gravitee.repository</groupId>
+             <artifactId>gravitee-repository-test</artifactId>
+-            <version>${gravitee-repository-test.version}</version>
++            <version>${project.version}</version>
+             <classifier>tests</classifier>
+             <scope>test</scope>
+         </dependency>
+diff --git a/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml b/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml
+index 738915a3..8a7fe866 100644
+--- a/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml
+@@ -21,19 +21,16 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <parent>
+-        <groupId>io.gravitee</groupId>
+-        <artifactId>gravitee-parent</artifactId>
+-        <version>19.2.1</version>
++        <groupId>io.gravitee.apim.repository</groupId>
++        <artifactId>gravitee-apim-repository</artifactId>
++        <version>3.10.0-SNAPSHOT</version>
+     </parent>
+ 
+-	<groupId>io.gravitee.repository</groupId>
+ 	<artifactId>gravitee-repository-mongodb</artifactId>
+ 	<version>3.10.0-SNAPSHOT</version>
+ 	<name>Gravitee.io APIM - Repository - MongoDB</name>
+ 
+ 	<properties>
+-		<gravitee-repository.version>3.10.0-SNAPSHOT</gravitee-repository.version>
+-		<gravitee-repository-test.version>3.10.0-SNAPSHOT</gravitee-repository-test.version>
+ 		<gravitee-definition.version>1.25.0</gravitee-definition.version>
+         <testcontainers.version>1.15.3</testcontainers.version>
+         <mongo.version>3.12.0</mongo.version>
+@@ -49,7 +46,7 @@
+         <dependency>
+             <groupId>io.gravitee.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+-            <version>${gravitee-repository.version}</version>
++            <version>${project.version}</version>
+             <scope>provided</scope>
+         </dependency>
+ 
+@@ -178,7 +175,7 @@
+         <dependency>
+             <groupId>io.gravitee.repository</groupId>
+             <artifactId>gravitee-repository-test</artifactId>
+-            <version>${gravitee-repository-test.version}</version>
++            <version>${project.version}</version>
+             <classifier>tests</classifier>
+             <scope>test</scope>
+         </dependency>
+diff --git a/gravitee-apim-repository/gravitee-repository-redis/pom.xml b/gravitee-apim-repository/gravitee-repository-redis/pom.xml
+index 038f9929..68e10d94 100644
+--- a/gravitee-apim-repository/gravitee-repository-redis/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-redis/pom.xml
+@@ -21,18 +21,16 @@
+ 	<modelVersion>4.0.0</modelVersion>
+ 
+ 	<parent>
+-		<groupId>io.gravitee</groupId>
+-		<artifactId>gravitee-parent</artifactId>
+-		<version>19</version>
++		<groupId>io.gravitee.apim.repository</groupId>
++		<artifactId>gravitee-apim-repository</artifactId>
++		<version>3.10.0-SNAPSHOT</version>
+ 	</parent>
+ 
+-	<groupId>io.gravitee.repository</groupId>
+ 	<artifactId>gravitee-repository-redis</artifactId>
+-	<version>3.3.0-SNAPSHOT</version>
++	<version>3.10.0-SNAPSHOT</version>
+ 	<name>Gravitee.io APIM - Repository - Redis</name>
+ 
+ 	<properties>
+-		<gravitee-repository.version>3.2.0</gravitee-repository.version>
+ 		<lettuce.version>5.3.4.RELEASE</lettuce.version>
+ 		<spring-data-redis.version>2.3.4.RELEASE</spring-data-redis.version>
+ 		<maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
+@@ -45,7 +43,7 @@
+ 		<dependency>
+ 			<groupId>io.gravitee.repository</groupId>
+ 			<artifactId>gravitee-repository</artifactId>
+-			<version>${gravitee-repository.version}</version>
++			<version>${project.version}</version>
+ 			<scope>provided</scope>
+ 		</dependency>
+ 
+diff --git a/gravitee-apim-repository/gravitee-repository-test/pom.xml b/gravitee-apim-repository/gravitee-repository-test/pom.xml
+index c85401f4..bf895f03 100644
+--- a/gravitee-apim-repository/gravitee-repository-test/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository-test/pom.xml
+@@ -21,18 +21,16 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <parent>
+-        <groupId>io.gravitee</groupId>
+-        <artifactId>gravitee-parent</artifactId>
+-        <version>19.2.1</version>
++        <groupId>io.gravitee.apim.repository</groupId>
++        <artifactId>gravitee-apim-repository</artifactId>
++        <version>3.10.0-SNAPSHOT</version>
+     </parent>
+ 
+-    <groupId>io.gravitee.repository</groupId>
+     <artifactId>gravitee-repository-test</artifactId>
+     <version>3.10.0-SNAPSHOT</version>
+     <name>Gravitee.io APIM - Repository - Test</name>
+ 
+     <properties>
+-        <gravitee-repository.version>3.10.0-SNAPSHOT</gravitee-repository.version>
+         <commons-io.version>1.3.2</commons-io.version>
+         <jackson-mapper-asl.version>1.9.13</jackson-mapper-asl.version>
+         <javax.inject.version>1</javax.inject.version>
+@@ -44,7 +42,7 @@
+         <dependency>
+             <groupId>io.gravitee.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+-            <version>${gravitee-repository.version}</version>
++            <version>${project.version}</version>
+             <scope>test</scope>
+         </dependency>
+ 
+diff --git a/gravitee-apim-repository/gravitee-repository/README.adoc b/gravitee-apim-repository/gravitee-repository/README.adoc
+deleted file mode 100644
+index 7dc13235..00000000
+--- a/gravitee-apim-repository/gravitee-repository/README.adoc
++++ /dev/null
+@@ -1,2 +0,0 @@
+-# gravitee-api-management
+-Gravitee.io - API Management - OpenSource APIM Solution
+diff --git a/gravitee-apim-repository/gravitee-repository/pom.xml b/gravitee-apim-repository/gravitee-repository/pom.xml
+index 9e45433b..b44e0fa3 100644
+--- a/gravitee-apim-repository/gravitee-repository/pom.xml
++++ b/gravitee-apim-repository/gravitee-repository/pom.xml
+@@ -22,12 +22,11 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <parent>
+-        <groupId>io.gravitee</groupId>
+-        <artifactId>gravitee-parent</artifactId>
+-        <version>19.2.1</version>
++        <groupId>io.gravitee.apim.repository</groupId>
++        <artifactId>gravitee-apim-repository</artifactId>
++        <version>3.10.0-SNAPSHOT</version>
+     </parent>
+ 
+-    <groupId>io.gravitee.repository</groupId>
+     <artifactId>gravitee-repository</artifactId>
+     <version>3.10.0-SNAPSHOT</version>
+     <name>Gravitee.io APIM - Repository - API</name>
+diff --git a/gravitee-apim-repository/pom.xml b/gravitee-apim-repository/pom.xml
+new file mode 100644
+index 00000000..2e6db1cb
+--- /dev/null
++++ b/gravitee-apim-repository/pom.xml
+@@ -0,0 +1,45 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++
++    Copyright (C) 2015 The Gravitee team (http://gravitee.io)
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++            http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <modelVersion>4.0.0</modelVersion>
++
++    <parent>
++        <groupId>io.gravitee.apim</groupId>
++        <artifactId>gravitee-api-management</artifactId>
++        <version>3.10.0-SNAPSHOT</version>
++    </parent>
++
++    <groupId>io.gravitee.apim.repository</groupId>
++    <artifactId>gravitee-apim-repository</artifactId>
++    <packaging>pom</packaging>
++
++    <version>3.10.0-SNAPSHOT</version>
++    <name>Gravitee.io APIM - Repository</name>
++
++    <modules>
++        <module>gravitee-repository</module>
++        <module>gravitee-repository-test</module>
++        <module>gravitee-repository-mongodb</module>
++        <module>gravitee-repository-jdbc</module>
++        <module>gravitee-repository-redis</module>
++        <module>gravitee-repository-hazelcast</module>
++        <module>gravitee-repository-gateway-bridge-http</module>
++    </modules>
++</project>
+diff --git a/pom.xml b/pom.xml
+new file mode 100644
+index 00000000..2993b69b
+--- /dev/null
++++ b/pom.xml
+@@ -0,0 +1,69 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++
++    Copyright (C) 2015 The Gravitee team (http://gravitee.io)
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++            http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <modelVersion>4.0.0</modelVersion>
++
++    <parent>
++        <groupId>io.gravitee</groupId>
++        <artifactId>gravitee-parent</artifactId>
++        <version>19.2.3</version>
++    </parent>
++
++    <groupId>io.gravitee.apim</groupId>
++    <artifactId>gravitee-api-management</artifactId>
++    <packaging>pom</packaging>
++
++    <version>3.10.0-SNAPSHOT</version>
++    <name>Gravitee.io APIM - API Management</name>
++
++    <scm>
++        <url>https://github.com/gravitee-io/gravitee-api-management</url>
++        <connection>scm:git:git://github.com/gravitee-io/gravitee-api-management.git</connection>
++        <developerConnection>scm:git:git@github.com:gravitee-io/gravitee-api-management.git</developerConnection>
++    </scm>
++
++    <issueManagement>
++        <url>https://github.com/gravitee-io/issues/issues</url>
++        <system>GitHub Issues</system>
++    </issueManagement>
++
++    <modules>
++        <module>gravitee-apim-repository</module>
++    </modules>
++
++    <properties>
++        <gravitee-parent.version>19.2.3</gravitee-parent.version>
++    </properties>
++
++    <dependencyManagement>
++        <dependencies>
++            <!-- Import parent to properly inherit all dependencies -->
++            <dependency>
++                <groupId>io.gravitee</groupId>
++                <artifactId>gravitee-parent</artifactId>
++                <version>${gravitee-parent.version}</version>
++                <scope>import</scope>
++                <type>pom</type>
++            </dependency>
++
++        </dependencies>
++    </dependencyManagement>
++
++</project>
+-- 
+2.31.1
+
