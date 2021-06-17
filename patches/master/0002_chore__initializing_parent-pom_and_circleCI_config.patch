@@ -1,0 +1,235 @@
+Index: .circleci/config.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+--- a/.circleci/config.yml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/.circleci/config.yml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -45,29 +45,31 @@
+       - gravitee/d_pull_requests_secrets:
+           context: cicd-orchestrator
+           name: pr_secrets_resolution
+-            # - gravitee/d_pr_tests_containers_qa:
+-            # context: gravitee-qa
+-            # name: process_pull_request_qa
+-            # requires:
+-            # - pr_secrets_resolution
+-            # # "What is the maven ID of the maven profile to use to build and deploy SNAPSHOTS to Prviate Artifactory ?"
+-            # maven_profile_id: 'gio-dev'
+-            # filters:
+-            # branches:
+-            # ignore:
+-          # - master
+-      - gravitee/d_pull_requests_ce:
+-          name: process_pull_request
++      - gravitee/d_pr_tests_containers_qa:
++          context: gravitee-qa
++          name: process_pull_request_qa
+           requires:
+             - pr_secrets_resolution
+           # "What is the maven ID of the maven profile to use to build and deploy SNAPSHOTS to Prviate Artifactory ?"
+           maven_profile_id: 'gio-dev'
++          # filters:
++            # branches:
++              # ignore:
++                # - master
++      # --- +
++      #  No Standard pull request for Mongo : Only Test Containers
++      # --- +
++      # - gravitee/d_pull_requests_ce:
++          # name: process_pull_request
++          # requires:
++            # - pr_secrets_resolution
++          # # "What is the maven ID of the maven profile to use to build and deploy SNAPSHOTS to Prviate Artifactory ?"
++          # maven_profile_id: 'gio-dev'
+           # nexus_snapshots_url: 'https://oss.sonatype.org/content/repositories/snapshots'
+           # nexus_snapshots_server_id: 'sonatype-nexus-snapshots'
+           # container_gun_image_org: 'circleci'
+           # container_gun_image_name: 'openjdk'
+           # container_gun_image_tag: '11.0.3-jdk-stretch'
+-          container_size: 'medium'
+             # filters:
+             # branches:
+             # ignore:
+Index: gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-client/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -33,7 +33,7 @@
+     <dependencies>
+         <!-- Gravitee dependencies -->
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+             <scope>provided</scope>
+         </dependency>
+Index: gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/gravitee-repository-gateway-bridge-http-server/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -33,7 +33,7 @@
+     <dependencies>
+         <!-- Gravitee dependencies -->
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+             <scope>provided</scope>
+         </dependency>
+Index: gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-gateway-bridge-http/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -62,7 +62,7 @@
+         <dependencies>
+             <!-- Gravitee.io -->
+             <dependency>
+-                <groupId>io.gravitee.repository</groupId>
++                <groupId>io.gravitee.apim.repository</groupId>
+                 <artifactId>gravitee-repository</artifactId>
+                 <version>${project.version}</version>
+             </dependency>
+Index: gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml b/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-hazelcast/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -38,7 +38,7 @@
+ 	<dependencies>
+ 		<!-- Gravitee dependencies -->
+ 		<dependency>
+-			<groupId>io.gravitee.repository</groupId>
++			<groupId>io.gravitee.apim.repository</groupId>
+ 			<artifactId>gravitee-repository</artifactId>
+ 			<version>${project.version}</version>
+ 			<scope>provided</scope>
+@@ -165,7 +165,7 @@
+                             <goal>unpack-dependencies</goal>
+                         </goals>
+                         <configuration>
+-                            <includeGroupIds>io.gravitee.repository</includeGroupIds>
++                            <includeGroupIds>io.gravitee.apim.repository</includeGroupIds>
+                             <includeArtifactIds>gravitee-repository-test</includeArtifactIds>
+                             <includeClassifiers>tests</includeClassifiers>
+                             <outputDirectory>${project.build.directory}/test-classes</outputDirectory>
+Index: gravitee-apim-repository/gravitee-repository-jdbc/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml b/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-jdbc/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -49,7 +49,7 @@
+     <dependencies>
+         <!-- Gravitee dependencies -->
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+             <version>${project.version}</version>
+             <scope>provided</scope>
+@@ -123,7 +123,7 @@
+ 
+         <!--  Test scope -->
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository-test</artifactId>
+             <version>${project.version}</version>
+             <classifier>tests</classifier>
+@@ -266,7 +266,7 @@
+                             <goal>unpack-dependencies</goal>
+                         </goals>
+                         <configuration>
+-                            <includeGroupIds>io.gravitee.repository</includeGroupIds>
++                            <includeGroupIds>io.gravitee.apim.repository</includeGroupIds>
+                             <includeArtifactIds>gravitee-repository-test</includeArtifactIds>
+                             <includeClassifiers>tests</includeClassifiers>
+                             <outputDirectory>${project.build.directory}/test-classes</outputDirectory>
+Index: gravitee-apim-repository/gravitee-repository-mongodb/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml b/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-mongodb/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -44,7 +44,7 @@
+     <dependencies>
+         <!-- Gravitee dependencies -->
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+             <version>${project.version}</version>
+             <scope>provided</scope>
+@@ -173,7 +173,7 @@
+         </dependency>
+ 
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository-test</artifactId>
+             <version>${project.version}</version>
+             <classifier>tests</classifier>
+@@ -242,7 +242,7 @@
+                             <goal>unpack-dependencies</goal>
+                         </goals>
+                         <configuration>
+-                            <includeGroupIds>io.gravitee.repository</includeGroupIds>
++                            <includeGroupIds>io.gravitee.apim.repository</includeGroupIds>
+                             <includeArtifactIds>gravitee-repository-test</includeArtifactIds>
+                             <includeClassifiers>tests</includeClassifiers>
+                             <outputDirectory>${project.build.directory}/test-classes</outputDirectory>
+Index: gravitee-apim-repository/gravitee-repository-redis/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-redis/pom.xml b/gravitee-apim-repository/gravitee-repository-redis/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-redis/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-redis/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -41,7 +41,7 @@
+ 	<dependencies>
+ 		<!-- Gravitee dependencies -->
+ 		<dependency>
+-			<groupId>io.gravitee.repository</groupId>
++			<groupId>io.gravitee.apim.repository</groupId>
+ 			<artifactId>gravitee-repository</artifactId>
+ 			<version>${project.version}</version>
+ 			<scope>provided</scope>
+Index: gravitee-apim-repository/gravitee-repository-test/pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gravitee-apim-repository/gravitee-repository-test/pom.xml b/gravitee-apim-repository/gravitee-repository-test/pom.xml
+--- a/gravitee-apim-repository/gravitee-repository-test/pom.xml	(revision 88bbec3834020fbe9e1b7c8f6da5ffee67d036ca)
++++ b/gravitee-apim-repository/gravitee-repository-test/pom.xml	(revision 9ab9983a14717e7dca32624ee07e197cdef9b30c)
+@@ -40,7 +40,7 @@
+ 
+     <dependencies>
+         <dependency>
+-            <groupId>io.gravitee.repository</groupId>
++            <groupId>io.gravitee.apim.repository</groupId>
+             <artifactId>gravitee-repository</artifactId>
+             <version>${project.version}</version>
+             <scope>test</scope>

@@ -14,14 +14,12 @@ Subject: [PATCH] chore: initializing parent-pom and circleCI config
  .../gravitee-repository-mongodb/pom.xml       |  13 +-
  .../gravitee-repository-redis/pom.xml         |  12 +-
  .../gravitee-repository-test/pom.xml          |  10 +-
- .../gravitee-repository/README.adoc           |   2 -
  .../gravitee-repository/pom.xml               |   7 +-
  gravitee-apim-repository/pom.xml              |  45 ++
  pom.xml                                       |  69 ++++
  14 files changed, 576 insertions(+), 50 deletions(-)
  create mode 100644 .circleci/config.yml
  create mode 100644 .gitignore
- delete mode 100644 gravitee-apim-repository/gravitee-repository/README.adoc
  create mode 100644 gravitee-apim-repository/pom.xml
  create mode 100644 pom.xml
 
@@ -725,14 +723,6 @@ index c85401f4..bf895f03 100644
              <scope>test</scope>
          </dependency>
  
-diff --git a/gravitee-apim-repository/gravitee-repository/README.adoc b/gravitee-apim-repository/gravitee-repository/README.adoc
-deleted file mode 100644
-index 7dc13235..00000000
---- a/gravitee-apim-repository/gravitee-repository/README.adoc
-+++ /dev/null
-@@ -1,2 +0,0 @@
--# gravitee-api-management
--Gravitee.io - API Management - OpenSource APIM Solution
 diff --git a/gravitee-apim-repository/gravitee-repository/pom.xml b/gravitee-apim-repository/gravitee-repository/pom.xml
 index 9e45433b..b44e0fa3 100644
 --- a/gravitee-apim-repository/gravitee-repository/pom.xml
