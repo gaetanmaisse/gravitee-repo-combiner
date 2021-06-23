@@ -12,15 +12,54 @@ import {
 import { fileOrDirectoryExist, listFilesOrDirectories, } from "./src/fs-helper.mjs";
 
 const newRootRepo = `gravitee-apim-repository`;
-const reposToMerge = [
-  `gravitee-repository`,
-  `gravitee-repository-test`,
-  `gravitee-repository-mongodb`,
-  `gravitee-repository-jdbc`,
-  `gravitee-repository-redis`,
-  `gravitee-repository-gateway-bridge-http`,
-  `gravitee-repository-hazelcast`,
-];
+const reposToMerge =
+  {
+    "3.0.x": {
+      "gravitee-repository": "3.0.x",
+      "gravitee-repository-test": "3.0.x",
+      "gravitee-repository-mongodb": "3.0.x",
+      "gravitee-repository-jdbc": "3.0.x",
+      "gravitee-repository-redis": "3.0.x",
+      "gravitee-repository-gateway-bridge-http": "3.0.x",
+      // "gravitee-repository-hazelcast": "master",
+    },
+    "3.5.x": {
+      "gravitee-repository": "3.5.x",
+      "gravitee-repository-test": "3.5.x",
+      "gravitee-repository-mongodb": "3.5.x",
+      "gravitee-repository-jdbc": "3.5.x",
+      "gravitee-repository-redis": "3.2.x",
+      "gravitee-repository-gateway-bridge-http": "3.5.x",
+      "gravitee-repository-hazelcast": "3.4.x",
+    },
+    "3.8.x": {
+      "gravitee-repository": "3.8.x",
+      "gravitee-repository-test": "3.8.x",
+      "gravitee-repository-mongodb": "3.8.x",
+      "gravitee-repository-jdbc": "3.8.x",
+      "gravitee-repository-redis": "3.2.x",
+      "gravitee-repository-gateway-bridge-http": "3.8.x",
+      "gravitee-repository-hazelcast": "3.4.x",
+    },
+    "3.9.x": {
+      "gravitee-repository": "3.9.x",
+      "gravitee-repository-test": "3.9.x",
+      "gravitee-repository-mongodb": "3.9.x",
+      "gravitee-repository-jdbc": "3.9.x",
+      "gravitee-repository-redis": "3.2.x",
+      "gravitee-repository-gateway-bridge-http": "3.9.x",
+      "gravitee-repository-hazelcast": "3.4.x",
+    },
+    "master": {
+      "gravitee-repository": "master",
+      "gravitee-repository-test": "master",
+      "gravitee-repository-mongodb": "master",
+      "gravitee-repository-jdbc": "master",
+      "gravitee-repository-redis": "master",
+      "gravitee-repository-gateway-bridge-http": "master",
+      "gravitee-repository-hazelcast": "master",
+    },
+  };
 
 const filesOrDirectoriesToExcludeDuringCopy = [
   `.gitignore`,
@@ -33,7 +72,7 @@ const filesOrDirectoriesToExcludeDuringCopy = [
 
 const patchDirPath = `${__dirname}/patches`;
 
-const branches = [`master`, `3.9.x`, `3.5.x`];
+const branches = Object.keys(reposToMerge);
 
 await $`rm -rf ../tmp/${newRootRepo}`;
 await $`mkdir -p ../tmp/${newRootRepo}`;
@@ -52,11 +91,10 @@ for (const branch of branches) {
 for (const branch of branches) {
   await checkoutBranch(branch);
 
-  for (const repoToMerge of reposToMerge) {
-    const branchToMerge = (await doesBranchExistsOnRemote(repoToMerge, branch))
-      ? branch
-      : "master";
+  const reposToMergeForThisBranch = Object.keys(reposToMerge[branch])
 
+  for (const repoToMerge of reposToMergeForThisBranch) {
+    let branchToMerge = reposToMerge[branch][repoToMerge];
     await addRemote(repoToMerge);
 
     await $`git fetch --all`;
