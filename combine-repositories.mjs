@@ -4,13 +4,11 @@ import {
   addRemote,
   checkoutBranch,
   commitEverything,
-  doesBranchExistsOnRemote,
   initBranch,
   initGitRepo,
   removeRemote,
 } from "./src/git-helper.mjs";
 import {
-  fileOrDirectoryExist,
   listFilesOrDirectories,
 } from "./src/fs-helper.mjs";
 
@@ -76,11 +74,11 @@ const patchDirPath = `${__dirname}/patches`;
 
 const branches = Object.keys(reposToMerge);
 
-await $`rm -rf ../tmp/${newRootRepo}`;
-await $`mkdir -p ../tmp/${newRootRepo}`;
+await $`rm -rf ../tmp/gravitee-api-management`;
+await $`mkdir -p ../tmp/gravitee-api-management`;
 
 // ⚠️ Changes the current working directory, all other commands will be run in this folder
-cd(`../tmp/${newRootRepo}`);
+cd(`../tmp/gravitee-api-management`);
 
 await initGitRepo();
 
@@ -125,16 +123,16 @@ for (const branch of branches) {
   }
 
   // Check for Git patch to apply
-  const patchDirForBranch = `${patchDirPath}/${branch}`;
-  if (await fileOrDirectoryExist(patchDirForBranch)) {
-    // Apply patches
-    let patches = await listFilesOrDirectories(patchDirForBranch);
-    for (const patch of patches) {
-      await $`git apply ${patchDirForBranch}/${patch}`;
-    }
-
-    await commitEverything(
-      `chore: applied manual changes via a patch file on branch ${branch}`
-    );
-  }
+  // const patchDirForBranch = `${patchDirPath}/${branch}`;
+  // if (await fileOrDirectoryExist(patchDirForBranch)) {
+  //   // Apply patches
+  //   let patches = await listFilesOrDirectories(patchDirForBranch);
+  //   for (const patch of patches) {
+  //     await $`git apply ${patchDirForBranch}/${patch}`;
+  //   }
+  //
+  //   await commitEverything(
+  //     `chore: applied manual changes via a patch file on branch ${branch}`
+  //   );
+  // }
 }
