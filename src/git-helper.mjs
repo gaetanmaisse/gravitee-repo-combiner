@@ -67,5 +67,5 @@ export async function removeRemote(remoteName) {
  */
 export async function commitEverything(commitMessage) {
   await $`git add -A`;
-  await $`git commit -m "${commitMessage}"`;
+  await $`git commit -m ${commitMessage}`;
 }
