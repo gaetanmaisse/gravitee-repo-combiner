@@ -4,13 +4,14 @@ import {
   addRemote,
   checkoutBranch,
   commitEverything,
+  initBranch,
   removeRemote,
 } from "./src/git-helper.mjs";
 import { listFilesOrDirectories } from "./src/fs-helper.mjs";
 
 const reposToMerge = {
   "3.0.x": {
-    "gravitee-management-rest-api": "3.0.x",
+   "gravitee-management-rest-api": "3.0.x",
   },
   "3.5.x": {
     "gravitee-management-rest-api": "3.5.x",
@@ -21,15 +22,15 @@ const reposToMerge = {
   "3.9.x": {
     "gravitee-management-rest-api": "3.9.x",
   },
+  "3.10.x": {
+    "gravitee-management-rest-api": "3.10.x",
+  },
   master: {
     "gravitee-management-rest-api": "master",
   },
 };
 
-const filesOrDirectoriesToExcludeDuringCopy = [
-  `appveyor.yml`,
-  `Jenkinsfile`,
-];
+const filesOrDirectoriesToExcludeDuringCopy = [`appveyor.yml`, `Jenkinsfile`];
 
 const branches = Object.keys(reposToMerge);
 
@@ -45,20 +46,18 @@ cd(`../tmp/gravitee-api-management`);
 // Then merge the branches of the different repository in the monorepo
 for (const branch of branches) {
   await checkoutBranch(branch);
+  await initBranch(`merge-${branch}`);
 
   const reposToMergeForThisBranch = Object.keys(reposToMerge[branch]);
 
-
-
   for (const repoToMerge of reposToMergeForThisBranch) {
     let currentData = await listFilesOrDirectories();
-
 
     let branchToMerge = reposToMerge[branch][repoToMerge];
     await addRemote(repoToMerge);
 
     await $`git fetch --all`;
-    await $`git merge ${repoToMerge}/${branchToMerge} --allow-unrelated-histories -X ours --no-commit`;
+    await $`git merge ${repoToMerge}/${branchToMerge} --allow-unrelated-histories -X ours`;
 
     await $`mkdir -p ${repoToMerge}`;
 
@@ -71,7 +70,8 @@ for (const branch of branches) {
     let folderData = await listFilesOrDirectories();
     // Do not move .git folder or any previously merged repository
     let dataToMove = folderData.filter(
-      (fileOrDirectory) => ![".git", repoToMerge, ...currentData].includes(fileOrDirectory)
+      (fileOrDirectory) =>
+        ![".git", repoToMerge, ...currentData].includes(fileOrDirectory)
     );
     for (const fileOrDirectory of dataToMove) {
       await $`mv ${fileOrDirectory} ${repoToMerge}`;
