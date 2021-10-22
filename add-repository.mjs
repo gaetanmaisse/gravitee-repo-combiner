@@ -10,23 +10,20 @@ import {
 import { listFilesOrDirectories } from "./src/fs-helper.mjs";
 
 const reposToMerge = {
-  "3.0.x": {
-   "gravitee-management-rest-api": "3.0.x",
-  },
-  "3.5.x": {
-    "gravitee-management-rest-api": "3.5.x",
-  },
-  "3.8.x": {
-    "gravitee-management-rest-api": "3.8.x",
-  },
-  "3.9.x": {
-    "gravitee-management-rest-api": "3.9.x",
-  },
-  "3.10.x": {
-    "gravitee-management-rest-api": "3.10.x",
-  },
+  // "3.5.x": {
+  //  "gravitee-management-webui": "3.5.x",
+  // },
+  // "3.10.x": {
+  //   "gravitee-management-webui": "3.10.x",
+  // },
+  // "3.11.x": {
+  //   "gravitee-management-webui": "3.11.x",
+  // },
+  // "3.12.x": {
+  //   "gravitee-management-webui": "3.12.x",
+  // },
   master: {
-    "gravitee-management-rest-api": "master",
+    "gravitee-management-webui": "master",
   },
 };
 
@@ -34,14 +31,17 @@ const filesOrDirectoriesToExcludeDuringCopy = [`appveyor.yml`, `Jenkinsfile`];
 
 const branches = Object.keys(reposToMerge);
 
-await $`rm -rf ../tmp/gravitee-api-management`;
+let workingDir = `tmp`;
+
+await $`rm -rf ../${workingDir}/gravitee-api-management`;
+await $`mkdir -p ../${workingDir}`;
 
 // ⚠️ Changes the current working directory, all other commands will be run in this folder
-cd(`../tmp`);
+cd(`../${workingDir}`);
 await $`git clone https://github.com/gravitee-io/gravitee-api-management.git`;
 
 // ⚠️ The origin pwd is always this script dir
-cd(`../tmp/gravitee-api-management`);
+cd(`../${workingDir}/gravitee-api-management`);
 
 // Then merge the branches of the different repository in the monorepo
 for (const branch of branches) {
