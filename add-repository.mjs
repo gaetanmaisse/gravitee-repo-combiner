@@ -10,21 +10,21 @@ import {
 import { listFilesOrDirectories } from "./src/fs-helper.mjs";
 
 const reposToMerge = {
-  // "3.5.x": {
-  //  "gravitee-management-webui": "3.5.x",
-  // },
+  "3.5.x": {
+   "gravitee-portal-webui": "3.5.x",
+  },
   // "3.10.x": {
-  //   "gravitee-management-webui": "3.10.x",
+  //   "gravitee-portal-webui": "3.10.x",
   // },
   // "3.11.x": {
-  //   "gravitee-management-webui": "3.11.x",
+  //   "gravitee-portal-webui": "3.11.x",
   // },
   // "3.12.x": {
-  //   "gravitee-management-webui": "3.12.x",
+  //   "gravitee-portal-webui": "3.12.x",
   // },
-  master: {
-    "gravitee-management-webui": "master",
-  },
+  // master: {
+  //   "gravitee-portal-webui": "master",
+  // },
 };
 
 const filesOrDirectoriesToExcludeDuringCopy = [`appveyor.yml`, `Jenkinsfile`];
