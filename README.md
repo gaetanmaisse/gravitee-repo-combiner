@@ -6,7 +6,7 @@ This repo contains a simple [zx](https://github.com/google/zx) script merging mu
 
 ### 👨‍🏫 How does this work?
 
-#### combine-repositories
+#### `combine-repositories`
 
 The script will:
  1. Create a new Git repository in `../tmp/gravitee-apim-repository`
@@ -15,7 +15,18 @@ The script will:
 
 Notes: Everything is idempotent and does not push anything on GitHub so feel free to run the script as much as you want.
 
-#### add-repository
+#### `merge-into-apim-monorepo`
+
+For details see the dedicated [README](./merge-into-apim-monorepo.md).
+
+This markdown file contains a standalone script that will:
+1. Ask for the repository and branch to merge into the APIM monorepo
+2. Clone `gravitee-api-management` repository in a temp directory
+3. Merge the branch into the newly cloned repository
+
+Notes: Everything is idempotent and does not push anything on GitHub so feel free to run the script as much as you want.
+
+#### OLD - `add-repository`
 
 The script will:
 1. Clone `gravitee-api-management` repository in `../tmp/gravitee-api-management`
